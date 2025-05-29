@@ -39,6 +39,7 @@ from .utils import (
     is_torch_mps_available,
     is_torch_musa_available,
     is_torch_npu_available,
+    is_torch_qaic_available,
     is_torch_xla_available,
     is_torch_xpu_available,
     requires_backends,
@@ -116,6 +117,8 @@ def set_seed(seed: int, deterministic: bool = False):
         torch.npu.manual_seed_all(seed)
     if is_torch_hpu_available():
         torch.hpu.manual_seed_all(seed)
+    if is_torch_qaic_available():
+        torch.qaic.manual_seed_all(seed)
     if is_torch_xpu_available():
         torch.xpu.manual_seed_all(seed)
     if is_tf_available():
@@ -515,6 +518,11 @@ class TrainerMemoryTracker:
 
             self.torch = torch
             self.gpu = {}
+        elif is_torch_qaic_available():
+            import torch
+
+            self.torch = torch
+            self.gpu = {}
         else:
             self.torch = None
 
@@ -586,6 +594,8 @@ class TrainerMemoryTracker:
                 # self.torch.hpu.empty_cache()
             elif is_torch_mps_available():
                 self.torch.mps.empty_cache()
+            elif is_torch_qaic_available():
+                self.torch.qaic.memory.empty_cache()
 
         # gpu
         if self.torch is not None:
@@ -603,6 +613,9 @@ class TrainerMemoryTracker:
                 self.gpu_mem_used_at_start = self.torch.hpu.memory_allocated()
             elif is_torch_mps_available():
                 self.gpu_mem_used_at_start = self.torch.mps.current_allocated_memory()
+            elif is_torch_qaic_available():
+                # TODO (Meet): self.torch.qaic.max_memory_allocated() does not exist yet
+                self.gpu_mem_used_at_start = None
 
         # cpu
         self.cpu_mem_used_at_start = self.cpu_mem_used()
@@ -642,6 +655,8 @@ class TrainerMemoryTracker:
                 pass
             elif is_torch_mps_available():
                 self.torch.mps.empty_cache()
+            elif is_torch_qaic_available():
+                self.torch.qaic.memory.empty_cache()
 
         # concepts:
         # - alloc_delta:  the difference of allocated memory between the end and the start
@@ -671,6 +686,11 @@ class TrainerMemoryTracker:
             elif is_torch_mps_available():
                 self.gpu_mem_used_now = self.torch.mps.current_allocated_memory()
                 # self.torch.mps.max_memory_allocated() does not exist yet
+                self.gpu_mem_used_peak = None
+            elif is_torch_qaic_available():
+                # TODO (Meet): self.gpu_mem_used_now = self.torch.qaic.memory.current_allocated_memory()
+                self.gpu_mem_used_now = None
+                # TODO (Meet): self.torch.qaic.max_memory_allocated() does not exist yet
                 self.gpu_mem_used_peak = None
 
             else:

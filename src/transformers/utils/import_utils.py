@@ -636,6 +636,8 @@ def is_torch_bf16_gpu_available() -> bool:
         return True
     if is_torch_npu_available():
         return torch.npu.is_bf16_supported()
+    if is_torch_qaic_available():
+        return False
     return False
 
 
@@ -960,6 +962,25 @@ def is_torch_hpu_available() -> bool:
     torch.compile = hpu_backend_compile
 
     return True
+
+
+@lru_cache
+def is_torch_qaic_available(check_device=False):
+    "Checks if `torch_qaic` is installed and potentially if a QAIC is in the environment"
+    if not _torch_available or importlib.util.find_spec("torch_qaic") is None:
+        return False
+
+    import torch
+    import torch_qaic  # noqa: F401
+
+    if check_device:
+        try:
+            # Will raise a RuntimeError if no NPU is found
+            _ = torch.qaic.device_count()
+            return torch.qaic.is_available()
+        except RuntimeError:
+            return False
+    return hasattr(torch, "qaic") and torch.qaic.is_available()
 
 
 @lru_cache

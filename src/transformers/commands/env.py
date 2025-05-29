@@ -32,6 +32,7 @@ from ..utils import (
     is_torch_available,
     is_torch_hpu_available,
     is_torch_npu_available,
+    is_torch_qaic_available,
     is_torch_xpu_available,
 )
 from . import BaseTransformersCLICommand
@@ -99,6 +100,7 @@ class EnvironmentCommand(BaseTransformersCLICommand):
             pt_xpu_available = is_torch_xpu_available()
             pt_npu_available = is_torch_npu_available()
             pt_hpu_available = is_torch_hpu_available()
+            pt_qaic_available = is_torch_qaic_available()
 
             if pt_cuda_available:
                 pt_accelerator = "CUDA"
@@ -108,6 +110,8 @@ class EnvironmentCommand(BaseTransformersCLICommand):
                 pt_accelerator = "NPU"
             elif pt_hpu_available:
                 pt_accelerator = "HPU"
+            elif pt_qaic_available:
+                pt_accelerator = "QAIC"
 
         tf_version = "not installed"
         tf_cuda_available = "NA"

@@ -51,6 +51,7 @@ from ..utils import (
     is_torch_mps_available,
     is_torch_musa_available,
     is_torch_npu_available,
+    is_torch_qaic_available,
     is_torch_xpu_available,
     logging,
 )
@@ -993,15 +994,19 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
             if device == -1 and self.model.device is not None:
                 device = self.model.device
             if isinstance(device, torch.device):
-                if (device.type == "xpu" and not is_torch_xpu_available(check_device=True)) or (
-                    device.type == "hpu" and not is_torch_hpu_available()
+                if (
+                    (device.type == "xpu" and not is_torch_xpu_available(check_device=True))
+                    or (device.type == "hpu" and not is_torch_hpu_available())
+                    or (device.type == "qaic" and not is_torch_qaic_available())
                 ):
                     raise ValueError(f'{device} is not available, you should use device="cpu" instead')
 
                 self.device = device
             elif isinstance(device, str):
-                if ("xpu" in device and not is_torch_xpu_available(check_device=True)) or (
-                    "hpu" in device and not is_torch_hpu_available()
+                if (
+                    ("xpu" in device and not is_torch_xpu_available(check_device=True))
+                    or ("hpu" in device and not is_torch_hpu_available())
+                    or ("qaic" in device and not is_torch_qaic_available())
                 ):
                     raise ValueError(f'{device} is not available, you should use device="cpu" instead')
 
@@ -1018,6 +1023,8 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
                 self.device = torch.device(f"npu:{device}")
             elif is_torch_hpu_available():
                 self.device = torch.device(f"hpu:{device}")
+            elif is_torch_qaic_available():
+                self.device = torch.device(f"qaic:{device}")
             elif is_torch_xpu_available(check_device=True):
                 self.device = torch.device(f"xpu:{device}")
             elif is_torch_mps_available():
