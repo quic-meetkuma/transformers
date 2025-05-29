@@ -46,6 +46,7 @@ from .utils import (
     is_torch_musa_available,
     is_torch_neuroncore_available,
     is_torch_npu_available,
+    is_torch_qaic_available,
     is_torch_tf32_available,
     is_torch_xla_available,
     is_torch_xpu_available,
@@ -1833,6 +1834,10 @@ class TrainingArguments:
             elif is_torch_hpu_available():
                 device = torch.device("hpu:0")
                 torch.hpu.set_device(device)
+            elif is_torch_qaic_available():
+                device = torch.device("qaic:0")
+                torch.qaic.set_device(device)
+                self._n_gpu = torch.qaic.device_count()
             else:
                 # Default to cuda:0 (respects CUDA_VISIBLE_DEVICES); nn.DataParallel handles n_gpu > 1
                 device = torch.device(
