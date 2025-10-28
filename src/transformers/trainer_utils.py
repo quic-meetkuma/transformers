@@ -752,8 +752,7 @@ class TrainerMemoryTracker:
             elif is_torch_mps_available():
                 self.gpu_mem_used_at_start = self.torch.mps.current_allocated_memory()
             elif is_torch_qaic_available():
-                # TODO (Meet): self.torch.qaic.max_memory_allocated() does not exist yet
-                self.gpu_mem_used_at_start = None
+                self.gpu_mem_used_at_start = self.torch.cuda.memory_allocated()
 
         # cpu
         self.cpu_mem_used_at_start = self.cpu_mem_used()
@@ -826,11 +825,8 @@ class TrainerMemoryTracker:
                 # self.torch.mps.max_memory_allocated() does not exist yet
                 self.gpu_mem_used_peak = None
             elif is_torch_qaic_available():
-                # TODO (Meet): self.gpu_mem_used_now = self.torch.qaic.memory.current_allocated_memory()
-                self.gpu_mem_used_now = None
-                # TODO (Meet): self.torch.qaic.max_memory_allocated() does not exist yet
-                self.gpu_mem_used_peak = None
-
+                self.gpu_mem_used_now = self.torch.qaic.memory.memory_allocated()
+                self.gpu_mem_used_peak = self.torch.qaic.max_memory_allocated()
             else:
                 raise ValueError("No available GPU device found!")
 
