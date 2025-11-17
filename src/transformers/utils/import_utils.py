@@ -433,7 +433,7 @@ def is_torch_hpu_available() -> bool:
 @lru_cache
 def is_torch_qaic_available(check_device=False):
     "Checks if `torch_qaic` is installed and potentially if a QAIC is in the environment"
-    if not _torch_available or importlib.util.find_spec("torch_qaic") is None:
+    if not is_torch_available() or importlib.util.find_spec("torch_qaic") is None:
         return False
 
     import torch
