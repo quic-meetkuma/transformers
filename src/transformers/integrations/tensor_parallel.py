@@ -387,14 +387,14 @@ def get_tensor_shard(param, empty_param, device_mesh, rank, dim, tensor_idx: int
         dim = 0
 
     shard_size = math.ceil(empty_param.size(dim) / world_size)
-    start = rank * shard_size
+    start = local_rank * shard_size
     end = min(start + shard_size, empty_param.size(dim))
 
     if dim >= param_dim:
         raise ValueError(f"dim {dim} is out of bounds for tensor of dimension {param_dim}")
 
-    if rank >= world_size:
-        raise ValueError(f"Rank {rank} is out of bounds for mesh size {world_size}")
+    if local_rank >= world_size:
+        raise ValueError(f"Local rank {local_rank} is out of bounds for mesh size {world_size}")
 
     # we have the full tensor not 1 part of it.
     # in that case, we just assume that the weight was properly saved
@@ -411,7 +411,7 @@ def get_tensor_shard(param, empty_param, device_mesh, rank, dim, tensor_idx: int
             # this tensor does need to be materialized on this device:
             return param[:]
         else:
-            return torch.empty([], dtype=torch.int64, device=rank)
+            return torch.empty([], dtype=torch.int64, device=local_rank)
 
     slice_indices = [slice(None)] * len(param_shape)
 
