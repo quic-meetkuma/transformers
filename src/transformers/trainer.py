@@ -2330,7 +2330,11 @@ class Trainer:
             self.model.train()
             if hasattr(self.lr_scheduler, "step"):
                 # We should avoid accelerate preparing the model in TP case since we dont need it as it is handled by transformers from_pretrained and also it goes into DDP based preparation.
-                if self.is_tp_enabled:
+                dp_enabled = False
+                if self.args.parallelism_config:
+                    dp_enabled = self.args.parallelism_config.dp_replicate_enabled and not self.args.parallelism_config.dp_shard_enabled
+
+                if self.is_tp_enabled and not self.is_fsdp_enabled and not dp_enabled:
                     self.optimizer = self.accelerator.prepare(self.optimizer)
                 else:
                     model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
