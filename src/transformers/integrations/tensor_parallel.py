@@ -404,9 +404,9 @@ def get_tensor_shard(param, empty_param, device_mesh, rank, dim, tensor_idx: int
     # actually we still shard dim=0 does not change
     # so only case is if the dim of the empty param is 3 and the shard dim is 0 -> we put the
     # tensor on a certain device (with the input tensor_index)
-    dimensions = param.get_shape()
+    dimensions = param.size() if isinstance(param, torch.Tensor) else param.get_shape()
 
-    if empty_param.dim() == 3 and dim == 0 and len(param.get_shape()) == 2:
+    if empty_param.dim() == 3 and dim == 0 and len(dimensions) == 2:
         # special case we don't "shard" just send this entire tensor to the correct rank.
         if start <= tensor_idx < end:
             # this tensor does need to be materialized on this device:
@@ -414,9 +414,9 @@ def get_tensor_shard(param, empty_param, device_mesh, rank, dim, tensor_idx: int
         else:
             return torch.empty([], dtype=torch.int64, device=local_rank)
 
-    slice_indices = [slice(None)] * len(param.get_shape())
+    slice_indices = [slice(None)] * len(dimensions)
 
-    if start < param.get_shape()[dim]:
+    if start < dimensions[dim]:
         slice_indices[dim] = slice(start, end)
         param = param[tuple(slice_indices)]
         if isinstance(param, list):  # TODO handle the modulelist case!
