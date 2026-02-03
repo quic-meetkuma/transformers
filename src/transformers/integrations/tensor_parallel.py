@@ -1238,9 +1238,10 @@ def shard_and_distribute_module(
 
     if current_shard_plan is not None:
         try:
-            tp_layer = ALL_PARALLEL_STYLES[current_shard_plan](
-                empty_param=empty_param, device_mesh=device_mesh, rank=rank
-            )
+            tp_layer = ALL_PARALLEL_STYLES[current_shard_plan]
+            tp_layer.empty_param = empty_param
+            tp_layer.device_mesh = device_mesh
+            tp_layer.rank = rank
             param = tp_layer.partition_tensor(param, param_casting_dtype, is_contiguous)
         except NotImplementedError as e:
             print(
