@@ -618,11 +618,16 @@ class ReplicateParallel(TensorParallelLayer):
         input_tensor = inputs[0]
         if not isinstance(input_tensor, DTensor):
             input_tensor = DTensor.from_local(input_tensor, device_mesh, input_layouts, run_check=False)
-
+        # FIXME (Meet) : Check do we need this or not
+        # if input_layouts != desired_input_layouts:
+        #     input_tensor = input_tensor.redistribute(placements=desired_input_layouts, async_op=True)
         return input_tensor
 
     @staticmethod
     def _prepare_output_fn(output_layouts, use_local_output, mod, outputs, device_mesh):
+        # FIXME (Meet) : Check do we need this or not
+        # if outputs.placements != output_layouts:
+        #     outputs = outputs.redistribute(placements=output_layouts, async_op=True)
         return outputs.to_local() if use_local_output and isinstance(outputs, DTensor) else outputs
 
     def shard_tensor(
