@@ -752,7 +752,7 @@ class TrainerMemoryTracker:
             elif is_torch_mps_available():
                 self.gpu_mem_used_at_start = self.torch.mps.current_allocated_memory()
             elif is_torch_qaic_available():
-                self.gpu_mem_used_at_start = self.torch.cuda.memory_allocated()
+                self.gpu_mem_used_at_start = self.torch.qaic.memory_allocated()
 
         # cpu
         self.cpu_mem_used_at_start = self.cpu_mem_used()
