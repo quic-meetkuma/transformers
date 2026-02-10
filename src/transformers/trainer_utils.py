@@ -566,6 +566,7 @@ class TrainerMemoryTracker:
             elif is_torch_mps_available():
                 self.torch.mps.empty_cache()
             elif is_torch_qaic_available():
+                self.torch.qaic.reset_peak_memory_stats()
                 self.torch.qaic.memory.empty_cache()
 
         # gpu
