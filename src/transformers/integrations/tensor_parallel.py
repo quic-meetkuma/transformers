@@ -389,7 +389,7 @@ def get_tensor_shard(param, empty_param, device_mesh, rank, dim, tensor_idx: int
         raise ValueError(f"dim {dim} is out of bounds for tensor of dimension {param_dim}")
 
     if rank >= world_size:
-        raise ValueError(f"Local rank {rank} is out of bounds for mesh size {world_size}")
+        raise ValueError(f"Rank {rank} is out of bounds for mesh size {world_size}")
 
     # we have the full tensor not 1 part of it.
     # in that case, we just assume that the weight was properly saved
@@ -1187,6 +1187,7 @@ def gather_full_tensor(local_tensor: torch.Tensor, shard_dim: int, device_mesh) 
         The full reconstructed tensor (same on all ranks)
     """
     world_size = device_mesh.size()
+    process_group = device_mesh.get_group("tp")
 
     # Normalize negative dimension
     if shard_dim < 0:
@@ -1194,7 +1195,7 @@ def gather_full_tensor(local_tensor: torch.Tensor, shard_dim: int, device_mesh) 
 
     # Gather all shards
     gathered_tensors = [torch.empty_like(local_tensor) for _ in range(world_size)]
-    dist.all_gather(gathered_tensors, local_tensor.contiguous())
+    dist.all_gather(gathered_tensors, local_tensor.contiguous(), group=process_group)
 
     # Concatenate along the shard dimension
     return torch.cat(gathered_tensors, dim=shard_dim)
