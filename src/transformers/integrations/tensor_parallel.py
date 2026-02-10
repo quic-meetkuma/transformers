@@ -783,6 +783,34 @@ class RowwiseParallel(TensorParallelLayer):
         return tuple(shape)
 
 
+class LoRARowwiseParallel(RowwiseParallel):
+    """
+    Row-wise parallel: weight is sharded on dim -1 (input features).
+    Forward: input (optionally split) -> output partial -> all-reduce to replicate. -> output (optionally split for to comply with parallel branch of ColwiseParallel layer).
+    If the input is coming from earlier ColwiseParallel, it will already be split,
+    so we don't want to split again. But if it's coming from a non-parallelizable
+    operation (chunk/slice), we need to split it to match the sharded weight.
+
+    Args:
+        split_output: If True, splits replicated output after matmul. Use when output
+                     is to be used along with ColwiseParallel module whose output is sharded.
+                     Default True (generates sharded output for colwise layer).
+    """
+
+    def __init__(self, split_output: bool = True, **kwargs):
+        super().__init__(**kwargs)
+        self.split_output = split_output
+
+    def _prepare_output_fn(self, mod, outputs, device_mesh):
+        outputs = all_reduce_forward(outputs, device_mesh)
+        if hasattr(mod, "_bias") and mod._bias is not None:
+            outputs = outputs + mod._bias
+        if self.split_output:
+            # Output is replicated, split it to match sharded non-lora branch output tensor
+            return split(outputs, device_mesh)
+        return outputs
+
+
 class PackedColwiseParallel(ColwiseParallel):
     """Packed column-wise parallel for fused weights like gate_up_proj."""
 
@@ -1096,6 +1124,7 @@ class ParallelInterface(GeneralInterface):
             "colwise_gather_output": ColwiseParallel(gather_output=True),
             "colwise": ColwiseParallel(),
             "rowwise": RowwiseParallel(),
+            "lora_rowwise": LoRARowwiseParallel(),
             "rowwise_split_input": RowwiseParallel(split_input=True),
             "packed_colwise": PackedColwiseParallel(),
             "packed_rowwise": PackedRowwiseParallel(),
@@ -1116,6 +1145,7 @@ class ParallelInterface(GeneralInterface):
         "colwise_gather_output": -2,
         "packed_colwise": -2,
         "rowwise": -1,
+        "lora_rowwise": -1,
         "rowwise_split_input": -1,
         "packed_rowwise": -1,
         "embedding_rowwise": 0,
@@ -1128,6 +1158,7 @@ class ParallelInterface(GeneralInterface):
         "colwise_gather_output": -1,
         "packed_colwise": -1,
         "rowwise": None,
+        "lora_rowwise": None,
         "rowwise_split_input": None,
         "packed_rowwise": None,
         "embedding_rowwise": None,
