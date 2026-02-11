@@ -1165,10 +1165,10 @@ def gather_full_tensor(local_tensor: torch.Tensor, shard_dim: int, device_mesh) 
 
     # Gather all shards
     gathered_tensors = [torch.empty_like(local_tensor) for _ in range(world_size)]
-    dist.all_gather(gathered_tensors, local_tensor.contiguous())
+    dist.all_gather(gathered_tensors, local_tensor.contiguous(), group=process_group)
 
     # Concatenate along the shard dimension
-    return torch.cat(gathered_tensors, dim=shard_dim, group=process_group)
+    return torch.cat(gathered_tensors, dim=shard_dim)
 
 
 def gather_state_dict_for_save(
