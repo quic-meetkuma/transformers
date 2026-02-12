@@ -14,17 +14,18 @@
 """:
 This script is used to test training a model using Tensor Parallelism and Data Parallelism.
 
-Usage:
-export QAIC_VISIBLE_DEVICES=0,1,2,3
-TP_SIZE=2 DP_SIZE=2 torchrun --nproc_per_node=4 --rdzv_endpoint=localhost:29503 examples/3D_parallel_qaic.py
-CP_SIZE=2 DP_SIZE=2 torchrun --nproc_per_node=4 examples/3D_parallel_qaic.py
-CP_SIZE=2 TP_SIZE=2 torchrun --nproc_per_node=4 examples/3D_parallel_qaic.py
-DP_SIZE=2 CP_SIZE=2 TP_SIZE=2 torchrun --nproc_per_node=8 examples/3D_parallel_qaic.py
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=4,5,6,7
+export CUDA_VISIBLE_DEVICES=5,6,7
+TP_SIZE=2 DP_SIZE=2 torchrun --nproc_per_node=4 --rdzv_endpoint=localhost:29503 examples/3D_parallel.py
+CP_SIZE=2 DP_SIZE=2 torchrun --nproc_per_node=4 examples/3D_parallel.py
+CP_SIZE=2 TP_SIZE=2 torchrun --nproc_per_node=4 examples/3D_parallel.py
+DP_SIZE=2 CP_SIZE=2 TP_SIZE=2 torchrun --nproc_per_node=8 examples/3D_parallel.py
 
-TP_SIZE=1 CP_SIZE=4 torchrun --nproc_per_node=4 examples/3D_parallel_qaic.py
-TP_SIZE=1 DP_SIZE=4 torchrun --nproc_per_node=4 examples/3D_parallel_qaic.py
-TP_SIZE=4 DP_SIZE=1 torchrun --nproc_per_node=4 --rdzv_endpoint=localhost:29503 examples/3D_parallel_qaic.py
-IGNORE_SANITY=1 CP_SIZE=1 TP_SIZE=1 DP_SIZE=1 torchrun --nproc_per_node=1 --rdzv_endpoint=localhost:29504 examples/3D_parallel_qaic.py
+TP_SIZE=1 CP_SIZE=4 torchrun --nproc_per_node=4 examples/3D_parallel.py
+TP_SIZE=1 DP_SIZE=4 torchrun --nproc_per_node=4 examples/3D_parallel.py
+TP_SIZE=4 DP_SIZE=1 torchrun --nproc_per_node=4 --rdzv_endpoint=localhost:29503 examples/3D_parallel.py
+IGNORE_SANITY=1 CP_SIZE=1 TP_SIZE=1 DP_SIZE=1 torchrun --nproc_per_node=1 --rdzv_endpoint=localhost:29504 examples/3D_parallel.py
 ocalhost:29504 test_train.py
 """
 
@@ -37,7 +38,7 @@ import torch
 import torch.distributed as dist
 import torch.distributed.checkpoint as dcp
 import torch.optim as optim
-import trackio as wandb
+import wandb
 from datasets import load_dataset
 from torch.distributed.checkpoint.state_dict import get_state_dict, set_state_dict
 from torch.distributed.checkpoint.stateful import Stateful
@@ -73,8 +74,8 @@ def main():
     tp_size = int(os.environ.get("TP_SIZE", "1"))
     dp_size = int(os.environ.get("DP_SIZE", "1"))
     cp_size = int(os.environ.get("CP_SIZE", "1"))  # Add CP size configuration
-    # sdpa_backend = SDPBackend.FLASH_ATTENTION  # For CP
-    sdpa_backend = SDPBackend.MATH # For CP
+    sdpa_backend = SDPBackend.FLASH_ATTENTION  # For CP
+    # sdpa_backend = SDPBackend.MATH # For CP
     global_batch_size = 8  # Desired global batch size
     seq_len = 1024  # Sequence length
     num_train_steps = 10000  # Number of training steps
@@ -86,18 +87,18 @@ def main():
 
     # Initialize distributed environment
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
-        dist.init_process_group("qccl")
+        dist.init_process_group("nccl")
         rank = dist.get_rank()
         world_size = dist.get_world_size()
         local_rank = int(os.environ["LOCAL_RANK"])
-        torch.qaic.set_device(local_rank)
+        torch.cuda.set_device(local_rank)
 
         assert world_size == tp_size * dp_size * cp_size, (
             f"World size ({world_size}) must equal TP size ({tp_size}) * DP size ({dp_size}) * CP size ({cp_size})"
         )
 
         mesh = torch.arange(world_size).reshape(dp_size, tp_size, cp_size)
-        world_mesh = DeviceMesh(device_type="qaic", mesh=mesh, mesh_dim_names=("dp", "tp", "cp"))
+        world_mesh = DeviceMesh(device_type="cuda", mesh=mesh, mesh_dim_names=("dp", "tp", "cp"))
         tp_mesh = world_mesh["tp"]
         dp_mesh = world_mesh["dp"]
         cp_mesh = world_mesh["cp"]
@@ -126,8 +127,8 @@ def main():
                 else f"tp{tp_size}_dp{dp_size}_cp{cp_size}",
             )
             logger.info("Wandb initialized.")
-            # # Log the current file to wandb
-            # wandb.save("test_train.py")
+            # Log the current file to wandb
+            wandb.save("test_train.py")
 
     # Load model and tokenizer
     logger.info(f"Loading model and tokenizer from {model_name}")
@@ -140,14 +141,14 @@ def main():
         model_name,
         device_mesh=tp_mesh if dist.is_initialized() else None,
         tp_plan="auto",
-        dtype=torch.float16,
+        dtype=torch.bfloat16,
     )
     logger.info(f"Model loaded onto device mesh: {tp_mesh}")
-    device = torch.device(f"qaic:{local_rank}")
+    device = torch.device(f"cuda:{local_rank}")
     logger.info(f"Using device: {device} for non-model tensors")
     use_ddp = False
     if dist.is_initialized() and dp_mesh.size() > 1:
-        model = FSDP(model, device_mesh=dp_mesh, sharding_strategy=ShardingStrategy.SHARD_GRAD_OP)
+        model = FSDP(model, device_mesh=dp_mesh, sharding_strategy=ShardingStrategy.NO_SHARD)
         use_ddp = True
 
     model.train()
